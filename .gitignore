@@ -1,0 +1,104 @@
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+*.log.*
+
+# Python specific
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+*.env
+
+# Node.js specific
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Java specific
+*.class
+*.jar
+*.war
+*.ear
+*.iml
+.idea/
+
+# C/C++ specific
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+*.out
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+~$*
+
+# Version control system files
+*.orig
+*.rej
+
+# IDE and Editor specific
+.vscode/
+.idea/
+*.sublime-workspace
+*.sw?
+
+# Ignore macOS specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Ignore compressed files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.gz
+*.bz2
+*.xz
+
+# Ignore image caches
+*.psd
+*.tiff
+*.xcf
+
+# Ignore specific tool files
+coverage/
+*.coverage
+.cache/
+*.pid
+
+# Ignore environment-specific files
+.env
+.env.*
+*.local
+
+# Ignore backup files
+*.bak
+*.old
+
+# Ignore test and debug files
+*.test
+*.spec
+
+# Ignore database files
+*.sqlite
+*.db
+*.sql
+
+# Ignore compiled JavaScript/TypeScript
+*.js.map
+*.tsbuildinfo
