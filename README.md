@@ -1,2 +1,2 @@
 # trading_bot
-This trading bot is intended to predict the future price of selected assets, track current prices and predict next buy, sell and hold signlas. The bot is also intended to calculate CAPM. To predict the future price the bot uses Machine learnings.
+This trading bot is intended to predict the future price of selected assets, track current prices and predict next buy, sell and hold signlas. The bot is also intended to calculate CAPM. To predict the future price the bot uses Machine learnings. Functions are first tested in test_functions.ipynb and the first version is thesis10.py which gives the first layout of the code. The trading_bot.py is the work in progress to add more functions and features.
