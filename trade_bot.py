@@ -21,13 +21,16 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from adjustText import adjust_text
 from streamlit_autorefresh import st_autorefresh
-# from sklearn.preprocessing import MinMaxScaler
-# from sklearn.model_selection import train_test_split
-# from sklearn.ensemble import RandomForestRegressor
-# from sklearn.linear_model import LinearRegression
-# from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-# from tensorflow.keras.models import Sequential
-# from tensorflow.keras.layers import LSTM, Dense
+import ipywidgets as widgets
+from IPython.display import display, clear_output
+import threading
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
 # import plotly.graph_objects as go
 # from plotly.subplots import make_subplots
 # from datetime import datetime, timedelta
@@ -482,17 +485,88 @@ def sml(current_annual_rf_rate, beta_stock, capm_result, mean_market_return_annu
     print('=' * (50 + text_length))
 
 
-## Function to plot stock_live data
-
 ## Function to calculate Indicators
+def calculate_indicators(stock_live):
+    text_title ="CALCULATE INDICATORS"
+    print(f"{'=' * 25} {text_title} {'=' * 25}")
+    text_length = len(text_title)+2
+    
+    """Compute SMA50, SMA200, RSI, and MACD for stock data."""
+    stock_live['SMA50'] = stock_live['Close'].rolling(window=50).mean()
+    stock_live['SMA200'] = stock_live['Close'].rolling(window=200).mean()
 
+    # RSI Calculation
+    delta = stock_live['Close'].diff(1)
+    gain = delta.where(delta > 0, 0).rolling(window=14).mean()
+    loss = -delta.where(delta < 0, 0).rolling(window=14).mean()
+    rs = gain / loss
+    stock_live['RSI'] = 100 - (100 / (1 + rs))
+
+    # MACD Calculation
+    short_ema = stock_live['Close'].ewm(span=12, adjust=False).mean()
+    long_ema = stock_live['Close'].ewm(span=26, adjust=False).mean()
+    stock_live['MACD'] = short_ema - long_ema
+    stock_live['Signal_Line'] = stock_live['MACD'].ewm(span=9, adjust=False).mean()
+
+    print('=' * (50 + text_length))
+
+    return stock_live
 ## Function to analyze trends
 
 ## Function to graph indicators
 
 ## Function to prepate data for ML models
+def ml_prepare (data):
 
-## Function to split into test and train datasets
+    # Target engineering
+    
+    data['Target'] = data['Close'].shift(-1)
+
+    # Define features
+    features = ['Open', 'High', 'Low', 'Close', 'Volume', 'sma20', 'sma50', 'RSI']
+
+    # Handle NaN values
+    data = data.dropna()
+
+    # Separate features and target
+    X = data[features]
+    y = data['stock_tomorrow']
+
+    # Scale features and target
+    X_scaler = MinMaxScaler()
+    y_scaler = MinMaxScaler()
+
+    X_scaled = X_scaler.fit_transform(X)
+    y_scaled = y_scaler.fit_transform(y.values.reshape(-1, 1))
+
+    # Split data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y_scaled, test_size=0.2, random_state=42)
+
+    return X_scaler, y_scaler, X_scaled, y_scaled, X_train, X_test, y_train, y_test
+
+## Function to test and train models
+def train_model (X_train, y_train):
+
+    # Random Forest
+    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+    rf_model.fit(X_train, y_train.ravel())
+
+    # Linear Regression
+    lr_model = LinearRegression()
+    lr_model.fit(X_train, y_train)
+
+    # LSTM
+    X_train_lstm = X_train.reshape((X_train.shape[0], 1, X_train.shape[1]))
+    lstm_model = Sequential([
+        LSTM(50, return_sequences=True, input_shape=(1, X_train.shape[1])),
+        LSTM(50, return_sequences=False),
+        Dense(25),
+        Dense(1)
+    ])
+    lstm_model.compile(optimizer='adam', loss='mean_squared_error')
+    lstm_model.fit(X_train_lstm, y_train, epochs=50, batch_size=32, verbose=0)
+
+    return rf_model, lr_model, lstm_model
 
 ## Functions to evaluate models
 
@@ -527,19 +601,27 @@ def live_data(s_ticker, period, interval):
 
 ## Function to plot stock_live data
 def live_chart(data):
-    text_title ="GRAPH SML"
+    text_title = "GRAPH SML"
     print(f"{'=' * 25} {text_title} {'=' * 25}")
-    text_length = len(text_title)+2
+    text_length = len(text_title) + 2
 
-    #"""Plots a stock price chart."""
+    # Check if data is valid
     if data is None or data.empty:
+        print("No data available to plot.")
         return None
 
     fig, ax = plt.subplots(figsize=(10, 5))
 
-    # Brown Line
-    ax.plot(data.index, data['Close'], color='#8B4513', linewidth=1.5)  # Saddle Brown Line
+    # Plot Closing Price
+    ax.plot(data.index, data['Close'], color='#8B4513', linewidth=1.5, label="Close Price")  # Saddle Brown Line
 
+    # Plot SMA Indicators if available
+    if 'SMA50' in data.columns:
+        ax.plot(data.index, data['SMA50'], label="SMA50", linestyle="dashed", color="blue")
+    if 'SMA200' in data.columns:
+        ax.plot(data.index, data['SMA200'], label="SMA200", linestyle="dashed", color="red")
+    if 'RSI' in data.columns:
+        ax.plot(data.index, data['SMA200'], label="SMA200", linestyle="dashed", color="red")
     # Style Adjustments
     ax.set_facecolor('#D2B48C')  # Light Brown Background for Axes
     fig.patch.set_facecolor('#D2B48C')  # Light Brown Figure Background
@@ -554,10 +636,28 @@ def live_chart(data):
     ax.title.set_color('black')
     ax.grid(axis='y', linestyle='--', alpha=0.6, color='gray')
 
-    # X-Axis Formatting
-    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    fig.autofmt_xdate()
+    # X-Axis Formatting: Adjust based on the time range in the dataset
+    if len(data.index) > 1:  # Ensure there are multiple points to format correctly
+        time_span = (data.index[-1] - data.index[0]).days
+
+        if time_span <= 1:  # If less than or equal to one day
+            ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        elif time_span <= 30:  # If less than or equal to one month
+            ax.xaxis.set_major_locator(mdates.DayLocator(interval=1))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        else:  # For longer periods (months/years)
+            ax.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+        fig.autofmt_xdate()  # Automatically format x-axis labels for readability
+
+    # Add labels and legend
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Price")
+    ax.set_title("Stock Price Chart with Indicators")
+    ax.legend()
+
     print('=' * (50 + text_length))
 
     return fig
@@ -606,19 +706,7 @@ current_stock_return = float(stock_returns.iloc[-1])  # Convert to float
 ### 3.4- CAPM
 capm_result, advice = capm_return(beta_stock, current_annual_rf_rate, mean_market_return_annualized, current_stock_return)
 
-## 4- Define time range
-time_ranges = {
-     "1D": ("1d", "1m"),
-     "5D": ("5d", "5m"),
-     "1M": ("1mo", "30m"),
-     "3M": ("3mo", "1d"),
-     "6M": ("6mo", "1d"),
-     "YTD": ("ytd", "1d"),
-     "1Y": ("1y", "1d"),
-     "5Y": ("5y", "1wk"),
-     "MAX": ("max", "1mo"),
- }
-selected_period = None
+
 # 4- SML graph
 
 
@@ -627,6 +715,120 @@ selected_period = None
 # ======================== DASHBOARD ========================#
 ## Main layout of page: two columns. Col_1: show main contents, Col_2: Show indicators graphs
 ### Main title
-st.markdown(f"<h1 class='big-font'>📊 Stock Price Predictor <span style='color: blue;'>({s_ticker})</span></h1>", unsafe_allow_html=True)
+st.markdown(f"<h1 class='big-font'>Stock Price Predictor <span style='color: blue;'>({s_ticker})</span></h1>", unsafe_allow_html=True)
 
-sml(current_annual_rf_rate, beta_stock, capm_result, mean_market_return_annualized, current_market_return, mean_stock_return_annualized, current_stock_return, advice)
+### Main page columns
+col1, col2 = st.columns([0.7, 0.3])
+with col1:
+    # Tabs for Model Evaluation and Prediction
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Data Statistics", "Live chart", "Indicators", "Model Evaluation", "Prediction"])
+    #sml(current_annual_rf_rate, beta_stock, capm_result, mean_market_return_annualized, current_market_return, mean_stock_return_annualized, current_stock_return, advice)
+    with tab1:
+        st.write('Dataset statistics')
+    with tab2:
+    #### Live Data:
+    ##### Define available time ranges
+        time_ranges = {
+            "1D": ("1d", "1m"),
+            "5D": ("5d", "1m"),
+            "1M": ("1mo", "1d"),
+            "3M": ("3mo", "1d"),
+            "6M": ("6mo", "1d"),
+            "1Y": ("1y", "1d"),
+            "2Y": ("2y", "1d"),
+            "5Y": ("5y", "1mo"),
+            "Max": ("max", "1mo"),
+        }
+
+        # Initialize selected period (default: 1 Month)
+        selected_period = ("1mo", "1h")
+        s_ticker = "AAPL"  # Default ticker
+
+        # Output area for displaying results
+        output = widgets.Output()
+        # select periods to show data
+        selected_period = None
+
+        # Initialize session state for selected period
+        if "selected_period" not in st.session_state:
+            st.session_state.selected_period = None
+
+        # create columns for period selectors (buttons)
+        cols = st.columns(9)  # Creates a single row with 9 columns
+        for col, (label, (period, interval)) in zip(cols, time_ranges.items()):
+            with col:  # Ensures the button stays inside the column
+                if st.button(label, key=f"button_{label}"):
+                    st.session_state.selected_period = (period, interval)
+
+        # Use stored period after refresh
+        selected_period = st.session_state.selected_period
+
+        # Define stock_live outside to prevent "NameError"
+        stock_live = None
+
+        # Get display stock_live data 
+        if s_ticker and selected_period:
+            period, interval = selected_period
+            stock_live = live_data(s_ticker, period=period, interval=interval)
+            stock_live = calculate_indicators(stock_live)
+
+        # Extract the last closing price (only if stock data is available)
+        import pandas as pd
+
+        # Ensure stock_live is a DataFrame and not empty
+        if stock_live is not None and not stock_live.empty:
+            try:
+                # Get the last closing value as a scalar (not a series)
+                last_close_value = stock_live['Close'].iloc[-1].item()  # Last value of the 'Close' column
+                print(f"Last close value: {last_close_value}")  # Debugging: Check the value
+
+                # Check if there are enough data points to calculate percentage change
+                if len(stock_live) > 1:
+                    prev_close_value = stock_live['Close'].iloc[-2].item()  # Previous close value
+                    print(f"Previous close value: {prev_close_value}")  # Debugging: Check the previous value
+                    
+                    # Calculate percentage change
+                    percentage_change = ((last_close_value - prev_close_value) / prev_close_value) * 100
+                    print(f"Percentage change: {percentage_change}")  # Debugging: Check the change
+                else:
+                    percentage_change = 0  # If there is only one row, no percentage change can be calculated
+
+                # Display the last closing price with proper formatting
+                st.subheader(f"{s_ticker}: {last_close_value:.2f}")
+
+                # Display the percentage change with color-coded arrows
+                if percentage_change > 0:
+                    st.markdown(f'<span style="color:green;">▲ {percentage_change:.2f}%</span>', unsafe_allow_html=True)
+                elif percentage_change < 0:
+                    st.markdown(f'<span style="color:red;">▼ {percentage_change:.2f}%</span>', unsafe_allow_html=True)
+                else:
+                    st.markdown(f'<span style="color:gray;">• No Change</span>', unsafe_allow_html=True)
+
+                # Optionally, plot the chart
+                fig = live_chart(stock_live)
+                if fig:
+                    st.pyplot(fig)
+                else:
+                    st.error("Could not retrieve data or the ticker does not exist.")
+            
+            except Exception as e:
+                st.error(f"Error processing data: {e}")
+        else:
+            st.info("Enter a stock ticker and select a time range to display the chart.")
+
+
+        # --- Auto-refresh every 60 seconds ---
+        st_autorefresh(interval=60 * 1000, key="refresh_stock_chart")
+
+    with tab3:
+        st.write('Indicators chart')
+
+    with tab4:
+        st.write('Model Evaluation')
+
+    with tab5:
+        st.write('Predictions')
+
+with col2:
+    st.write('Contents')
+
