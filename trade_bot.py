@@ -496,6 +496,73 @@ def sml(current_annual_rf_rate, beta_stock, capm_result, mean_market_return_annu
 
 ## Functions to evaluate models
 
+# Live data functions
+
+## Function to get live Stock data
+def live_data(s_ticker, period, interval):
+    text_title ="LOADING DATA"
+    print(f"{'=' * 25} {text_title} {'=' * 25}")
+    text_length = len(text_title)+2
+
+    # Fetches stock data from yfinance.
+    try:
+        data = yf.download(s_ticker, period=period, interval=interval)
+        
+        # Ensure the datetime index is tz-naive
+        if data is not None and data.index.tz is not None:
+            try:
+                data.index = data.index.tz_localize(None)
+                print("Datetime index localized to tz-naive: OK")
+            except Exception as e:
+                print(f"Error localizing datetime index: {e}")
+        
+        
+        return data
+    except Exception as e:
+        print(f"Failed to fetch data for {s_ticker}: {e}")
+
+    print('=' * (50 + text_length))
+
+    return None
+
+## Function to plot stock_live data
+def live_chart(data):
+    text_title ="GRAPH SML"
+    print(f"{'=' * 25} {text_title} {'=' * 25}")
+    text_length = len(text_title)+2
+
+    #"""Plots a stock price chart."""
+    if data is None or data.empty:
+        return None
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    # Brown Line
+    ax.plot(data.index, data['Close'], color='#8B4513', linewidth=1.5)  # Saddle Brown Line
+
+    # Style Adjustments
+    ax.set_facecolor('#D2B48C')  # Light Brown Background for Axes
+    fig.patch.set_facecolor('#D2B48C')  # Light Brown Figure Background
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_color('gray')
+    ax.spines['left'].set_color('gray')
+    ax.tick_params(axis='x', colors='black', labelsize=9)
+    ax.tick_params(axis='y', colors='black', labelsize=9)
+    ax.yaxis.label.set_color('black')
+    ax.xaxis.label.set_color('black')
+    ax.title.set_color('black')
+    ax.grid(axis='y', linestyle='--', alpha=0.6, color='gray')
+
+    # X-Axis Formatting
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+    fig.autofmt_xdate()
+    print('=' * (50 + text_length))
+
+    return fig
+
+
 # ====================DATA AND CALCULATION ==================#
 
 ## 1- Load Data 
